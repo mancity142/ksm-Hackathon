@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Movie Script Analyzer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px 0;
+    }
+
+    button {
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    pre {
+      background: #f0f0f0;
+      padding: 15px;
+      white-space: pre-wrap;
+      border-left: 4px solid #444;
+      margin-top: 20px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🎬 Movie Script Analyzer with Gemini AI</h2>
+  <p>Enter a movie name (e.g. <i>The Matrix</i>, <i>Inception</i>, <i>Titanic</i>):</p>
+
+  <input type="text" id="movieInput" placeholder="Enter movie name">
+  <br>
+  <button onclick="fetchScript()">Get Script</button>
+  <button onclick="analyzeScript()">Analyze Script</button>
+  <button onclick="tagEmotions()">Tag Emotions (Scene-by-Scene)</button>
+
+  <pre id="result">Script or analysis will appear here...</pre>
+
+  <script>
+    async function fetchScript() {
+      const movie = document.getElementById('movieInput').value.trim();
+      if (!movie) {
+        document.getElementById('result').innerText = 'Please enter a movie name.';
+        return;
+      }
+
+      document.getElementById('result').innerText = '📥 Fetching script...';
+
+      try {
+        const response = await fetch('/get_script', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ movie })
+        });
+
+        const data = await response.json();
+        document.getElementById('result').innerText = data.script || data.error || '❌ Something went wrong.';
+      } catch (error) {
+        console.error(error);
+        document.getElementById('result').innerText = '❌ Error fetching script.';
+      }
+    }
+
+    async function analyzeScript() {
+      const script = document.getElementById('result').innerText;
+
+      if (!script || script === '📥 Fetching script...') {
+        alert("Please fetch the script first.");
+        return;
+      }
+
+      document.getElementById('result').innerText = '🤖 Analyzing script with Gemini...';
+
+      try {
+        const response = await fetch('/analyze_script', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ script })
+        });
+
+        const data = await response.json();
+        document.getElementById('result').innerText = data.analysis || data.error || '❌ Something went wrong.';
+      } catch (error) {
+        console.error(error);
+        document.getElementById('result').innerText = '❌ Error analyzing script.';
+      }
+    }
+
+    async function tagEmotions() {
+      const fullScript = document.getElementById('result').innerText;
+
+      if (!fullScript || fullScript === '📥 Fetching script...') {
+        alert("Please fetch the script first.");
+        return;
+      }
+
+      document.getElementById('result').innerText = '🎭 Tagging emotions scene by scene...';
+
+      // Split by "INT." or "EXT." as basic scene markers
+      const sceneRegex = /(?:INT\.|EXT\.)[\s\S]*?(?=(?:INT\.|EXT\.)|$)/gi;
+      const scenes = fullScript.match(sceneRegex) || [fullScript];
+
+      try {
+        const response = await fetch('/tag_emotions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenes })
+        });
+
+        const data = await response.json();
+
+        if (data.emotion_results) {
+          let output = "🎭 Emotion Tags per Scene:\n\n";
+          data.emotion_results.forEach((res, index) => {
+            output += `Scene ${index + 1}:\n${res.analysis}\n\n`;
+          });
+          document.getElementById('result').innerText = output;
+        } else {
+          document.getElementById('result').innerText = data.error || '❌ Emotion tagging failed.';
+        }
+      } catch (error) {
+        console.error(error);
+        document.getElementById('result').innerText = '❌ Error tagging emotions.';
+      }
+    }
+  </script>
+
+</body>
+</html>
