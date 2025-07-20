@@ -2,69 +2,92 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Movie Script Analyzer</title>
+  <title>🎬 Movie Scene Emotion Transformer</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
-      max-width: 800px;
+      background-color: #f8f9fa;
+      padding: 30px;
+      max-width: 900px;
       margin: auto;
     }
 
+    h2 {
+      color: #2c3e50;
+    }
+
     input, button {
-      padding: 10px;
+      padding: 12px;
       font-size: 16px;
-      margin: 5px 0;
+      margin: 10px 0;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     button {
       cursor: pointer;
-      margin-right: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #0056b3;
     }
 
     pre {
-      background: #f0f0f0;
+      background-color: #fff;
       padding: 15px;
-      white-space: pre-wrap;
       border-left: 4px solid #444;
-      margin-top: 20px;
+      white-space: pre-wrap;
       max-height: 500px;
       overflow-y: auto;
+      margin-top: 20px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
 
-  <h2>🎬 Movie Script Analyzer with Gemini AI</h2>
-  <p>Enter a movie name (e.g. <i>The Matrix</i>, <i>Inception</i>, <i>Titanic</i>):</p>
+  <h2>🎭 Movie Script Emotion Transformer</h2>
+  <p>Enter a movie name (e.g. <i>Inception</i>, <i>Titanic</i>, <i>Interstellar</i>):</p>
 
   <input type="text" id="movieInput" placeholder="Enter movie name">
-  <br>
-  <button onclick="fetchScript()">Get Script</button>
-  <button onclick="analyzeScript()">Analyze Script</button>
-  <button onclick="tagEmotions()">Tag Emotions (Scene-by-Scene)</button>
+  <div class="btn-group">
+    <button onclick="fetchScript()">📜 Get Script</button>
+    <button onclick="analyzeScript()">🤖 Analyze Scene (Gemini)</button>
+    <button onclick="convertToSpeech()">🗣️ Play as Speech (TTS)</button>
+  </div>
 
   <pre id="result">Script or analysis will appear here...</pre>
+
+  <audio id="ttsAudio" controls style="margin-top: 10px; display: none;"></audio>
 
   <script>
     async function fetchScript() {
       const movie = document.getElementById('movieInput').value.trim();
       if (!movie) {
-        document.getElementById('result').innerText = 'Please enter a movie name.';
+        document.getElementById('result').innerText = '❗ Please enter a movie name.';
         return;
       }
 
       document.getElementById('result').innerText = '📥 Fetching script...';
 
       try {
-        const response = await fetch('/get_script', {
+        const response = await fetch('http://127.0.0.1:5000/get_script', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ movie })
         });
 
         const data = await response.json();
-        document.getElementById('result').innerText = data.script || data.error || '❌ Something went wrong.';
+        document.getElementById('result').innerText = data.script || data.error || '❌ Script fetch failed.';
       } catch (error) {
         console.error(error);
         document.getElementById('result').innerText = '❌ Error fetching script.';
@@ -74,63 +97,50 @@
     async function analyzeScript() {
       const script = document.getElementById('result').innerText;
 
-      if (!script || script === '📥 Fetching script...') {
-        alert("Please fetch the script first.");
+      if (!script || script.includes("Fetching")) {
+        alert("Please fetch a script first.");
         return;
       }
 
-      document.getElementById('result').innerText = '🤖 Analyzing script with Gemini...';
+      document.getElementById('result').innerText = '🤖 Analyzing with Gemini...';
 
       try {
-        const response = await fetch('/analyze_script', {
+        const response = await fetch('http://127.0.0.1:5000/analyze_script', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ script })
         });
 
         const data = await response.json();
-        document.getElementById('result').innerText = data.analysis || data.error || '❌ Something went wrong.';
+        document.getElementById('result').innerText = data.analysis || data.error || '❌ Analysis failed.';
       } catch (error) {
         console.error(error);
-        document.getElementById('result').innerText = '❌ Error analyzing script.';
+        document.getElementById('result').innerText = '❌ Error during analysis.';
       }
     }
 
-    async function tagEmotions() {
-      const fullScript = document.getElementById('result').innerText;
-
-      if (!fullScript || fullScript === '📥 Fetching script...') {
-        alert("Please fetch the script first.");
+    async function convertToSpeech() {
+      const text = document.getElementById('result').innerText;
+      if (!text || text.includes("Fetching")) {
+        alert("Please generate analysis first.");
         return;
       }
 
-      document.getElementById('result').innerText = '🎭 Tagging emotions scene by scene...';
-
-      // Split by "INT." or "EXT." as basic scene markers
-      const sceneRegex = /(?:INT\.|EXT\.)[\s\S]*?(?=(?:INT\.|EXT\.)|$)/gi;
-      const scenes = fullScript.match(sceneRegex) || [fullScript];
-
       try {
-        const response = await fetch('/tag_emotions', {
+        const response = await fetch('http://127.0.0.1:5000/text_to_speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scenes })
+          body: JSON.stringify({ text })
         });
 
-        const data = await response.json();
-
-        if (data.emotion_results) {
-          let output = "🎭 Emotion Tags per Scene:\n\n";
-          data.emotion_results.forEach((res, index) => {
-            output += `Scene ${index + 1}:\n${res.analysis}\n\n`;
-          });
-          document.getElementById('result').innerText = output;
-        } else {
-          document.getElementById('result').innerText = data.error || '❌ Emotion tagging failed.';
-        }
-      } catch (error) {
-        console.error(error);
-        document.getElementById('result').innerText = '❌ Error tagging emotions.';
+        const blob = await response.blob();
+        const audio = document.getElementById('ttsAudio');
+        audio.src = URL.createObjectURL(blob);
+        audio.style.display = 'block';
+        audio.play();
+      } catch (err) {
+        alert("❌ Failed to generate speech.");
+        console.error(err);
       }
     }
   </script>
