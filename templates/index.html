@@ -1,149 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>🎬 Movie Scene Emotion Transformer</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gemini + DALL·E AI Tool</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f8f9fa;
-      padding: 30px;
-      max-width: 900px;
-      margin: auto;
-    }
-
-    h2 {
-      color: #2c3e50;
-    }
-
-    input, button {
-      padding: 12px;
-      font-size: 16px;
-      margin: 10px 0;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    button {
-      cursor: pointer;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      transition: 0.3s;
-    }
-
-    button:hover {
-      background-color: #0056b3;
-    }
-
-    pre {
-      background-color: #fff;
-      padding: 15px;
-      border-left: 4px solid #444;
-      white-space: pre-wrap;
-      max-height: 500px;
-      overflow-y: auto;
-      margin-top: 20px;
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+    input, textarea, button { padding: 10px; margin-top: 10px; width: 100%; box-sizing: border-box; }
+    button { background: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    #output, #image-container { margin-top: 20px; }
+    img { max-width: 100%; border: 1px solid #ccc; padding: 5px; background: white; }
   </style>
 </head>
 <body>
+  <h1>Gemini + DALL·E AI Generator</h1>
 
-  <h2>🎭 Movie Script Emotion Transformer</h2>
-  <p>Enter a movie name (e.g. <i>Inception</i>, <i>Titanic</i>, <i>Interstellar</i>):</p>
+  <label for="geminiPrompt">Enter text to analyze with Gemini:</label>
+  <textarea id="geminiPrompt" rows="4" placeholder="e.g. Summarize this movie plot..."></textarea>
+  <button onclick="analyzeText()">Analyze Text</button>
+  <div id="output"></div>
 
-  <input type="text" id="movieInput" placeholder="Enter movie name">
-  <div class="btn-group">
-    <button onclick="fetchScript()">📜 Get Script</button>
-    <button onclick="analyzeScript()">🤖 Analyze Scene (Gemini)</button>
-    <button onclick="convertToSpeech()">🗣️ Play as Speech (TTS)</button>
-  </div>
+  <hr>
 
-  <pre id="result">Script or analysis will appear here...</pre>
-
-  <audio id="ttsAudio" controls style="margin-top: 10px; display: none;"></audio>
+  <label for="dallePrompt">Enter prompt to generate image with DALL·E:</label>
+  <input type="text" id="dallePrompt" placeholder="e.g. A cyberpunk city in the clouds"/>
+  <button onclick="generateImage()">Generate Image</button>
+  <div id="image-container"></div>
 
   <script>
-    async function fetchScript() {
-      const movie = document.getElementById('movieInput').value.trim();
-      if (!movie) {
-        document.getElementById('result').innerText = '❗ Please enter a movie name.';
-        return;
-      }
-
-      document.getElementById('result').innerText = '📥 Fetching script...';
-
-      try {
-        const response = await fetch('http://127.0.0.1:5000/get_script', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ movie })
-        });
-
-        const data = await response.json();
-        document.getElementById('result').innerText = data.script || data.error || '❌ Script fetch failed.';
-      } catch (error) {
-        console.error(error);
-        document.getElementById('result').innerText = '❌ Error fetching script.';
-      }
+    async function analyzeText() {
+      const prompt = document.getElementById("geminiPrompt").value;
+      const res = await fetch("/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
+      });
+      const data = await res.json();
+      document.getElementById("output").innerHTML = `<strong>Gemini Output:</strong><br>${data.gemini_output}`;
     }
 
-    async function analyzeScript() {
-      const script = document.getElementById('result').innerText;
-
-      if (!script || script.includes("Fetching")) {
-        alert("Please fetch a script first.");
-        return;
-      }
-
-      document.getElementById('result').innerText = '🤖 Analyzing with Gemini...';
-
-      try {
-        const response = await fetch('http://127.0.0.1:5000/analyze_script', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ script })
-        });
-
-        const data = await response.json();
-        document.getElementById('result').innerText = data.analysis || data.error || '❌ Analysis failed.';
-      } catch (error) {
-        console.error(error);
-        document.getElementById('result').innerText = '❌ Error during analysis.';
-      }
-    }
-
-    async function convertToSpeech() {
-      const text = document.getElementById('result').innerText;
-      if (!text || text.includes("Fetching")) {
-        alert("Please generate analysis first.");
-        return;
-      }
-
-      try {
-        const response = await fetch('http://127.0.0.1:5000/text_to_speech', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text })
-        });
-
-        const blob = await response.blob();
-        const audio = document.getElementById('ttsAudio');
-        audio.src = URL.createObjectURL(blob);
-        audio.style.display = 'block';
-        audio.play();
-      } catch (err) {
-        alert("❌ Failed to generate speech.");
-        console.error(err);
-      }
+    async function generateImage() {
+      const prompt = document.getElementById("dallePrompt").value;
+      const res = await fetch("/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
+      });
+      const data = await res.json();
+      document.getElementById("image-container").innerHTML = `<strong>Generated Image:</strong><br><img src="${data.image_url}" alt="AI Image"/>`;
     }
   </script>
-
 </body>
 </html>
